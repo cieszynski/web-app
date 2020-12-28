@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>App</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=0" />
+    <style>
+        :root {
+            --web-drawer-content-background-color: white;
+        }
+    </style>
+    <script>
+        class AppElement extends HTMLElement {
+            constructor() {
+                super();
+            }
+
+            get app() { return document.querySelector('web-app'); }
+            get appbar() { return document.querySelector('web-appbar'); }
+            get drawer() { return document.querySelector('web-drawer-content'); }
+        }
+
+        window.customElements.define('web-app', class extends AppElement {
+            constructor() {
+                super();
+            }
+        });
+
+        window.customElements.define('web-appbar', class extends AppElement {
+            constructor() {
+                super();
+            }
+
+            connectedCallback() {
+                const nodes = [];
+                const style = document.createElement('style');
+                style.textContent = `
+                    :host {
+                        top: 0;
+                        left: 0;
+                        position: fixed;
+                        display: flex;
+                        align-items: center;
+                        width: 100vw;
+                        height: 56px;
+                        box-sizing: border-box;
+                        padding: 8px;
+                        background-color: red;
+                        color: white;
+                        fill: white;
+                        font: bold 20px "sans-serif";
+                        box-shadow:0 2px 4px -1px rgba(0,0,0,.2),0 4px 5px 0 rgba(0,0,0,.14),0 1px 10px 0 rgba(0,0,0,.12);
+                    }
+
+                    :host button {
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        margin: 0 16px 0 0;
+                        padding: 0;
+                        width: 56px;
+                        height: 56px;
+                        border: none;
+                        background-color: transparent;
+                    }
+                `;
+                nodes.push(style)
+
+                if (this.hasAttribute('drawer')) {
+                    const button = document.createElement('button');
+                    button.innerHTML = `
+                        <svg viewBox="0 0 24 24" width="24" height="24">
+                            <path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/>
+                        </svg>
+                    `;
+                    nodes.push(button)
+                }
+
+                nodes.push(document.createElement('slot'))
+                this.attachShadow({ mode: 'open' }).append(...nodes)
+            }
+        });
+
+        // https://codepen.io/thebabydino/pen/PRWqMg/
+        let i = 0, x0 = null, locked = false, w = 512, ini, fin, rID = null, anf, n, N = 2, NF = 30;
+        function unify(e) { return e.changedTouches ? e.changedTouches[0] : e };
+
+        window.customElements.define('web-drawer', class extends AppElement {
+            constructor() {
+                super();
+
+                this.addEventListener('touchstart', this.ontouchstart.bind(this));
+                this.addEventListener('touchend', this.ontouchend.bind(this));
+                this.addEventListener('touchmove', this.ontouchmove.bind(this));
+
+                this.addEventListener('mousedown', this.ontouchstart.bind(this));
+                this.addEventListener('mouseup', this.ontouchend.bind(this));
+                this.addEventListener('mousemove', this.ontouchmove.bind(this));
+
+                this.az_off = 0;
+            }
+
+            stopAni() {
+                cancelAnimationFrame(rID);
+                rID = null
+            }
+
+            ani(cf) {
+                cf = cf || 0;
+                // .5*(Math.sin(((cf / anf) - .5)*Math.PI) + 1)
+                this.drawer.style.setProperty('--i', ini + (fin - ini) * .5*(Math.sin(((cf / anf) - .5)*Math.PI) + 1));
+
+                if (cf === anf) {
+                    this.stopAni();
+                    return
+                }
+
+                rID = requestAnimationFrame(this.ani.bind(this, ++cf))
+            }
+
+            lock(e) {
+                x0 = unify(e).clientX;
+                locked = true
+            }
+
+            connectedCallback() {
+                //console.log(this.hasAttribute('modal'))
+                const style = document.createElement('style');
+                style.textContent = `
+                    :host {
+                        display: flex;
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100vw;
+                        height: 100%;
+                        background-color: rgba(0, 0, 0, .6);
+                        visibility: hidden;
+                    }
+
+                    :host::after {
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100vw;
+                        height: 100%;
+                        content: "\\A0";
+                        background-color: inherit;
+                        pointer-events: none;
+                        visibility: visible;
+                    }
+
+                    ::slotted(*) {
+                        visibility: visible;
+                    }
+
+                    ::slotted(web-drawer-content) {
+                        background-color: var(--web-drawer-content-background-color, white);
+                        box-shadow:0 2px 4px -1px rgba(0,0,0,.2),0 4px 5px 0 rgba(0,0,0,.14),0 1px 10px 0 rgba(0,0,0,.12);
+                        display: flex;
+                        flex-direction: column;
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 256px;
+                        height: 100%;
+                        padding: 8px;
+                        overflow-x: hidden;
+                        oveflow-y: scroll;
+                        border-right: 8px solid rgba(0,0,0,.1);
+                        box-sizing: content-box;
+                        z-index: 1;
+                        transform: translate(calc(var(--i, 0)/1.025*-100%));
+                    }
+
+                    ::slotted(web-drawer-content.opened) {
+                        transform: translateX(0%)
+                    }
+
+                    ::slotted(web-drawer-content.closed){
+                        transform: translateX(-50%)
+                    }
+                `;
+
+                const content = document.createElement('slot');
+                const drawer = document.createElement('slot');
+                const div = document.createElement('div');
+
+                this.attachShadow({ mode: 'open' }).append(style, content, drawer);
+            }
+
+            ontouchstart(e) {
+                x0 = unify(e).clientX;
+                locked = true
+            }
+
+            ontouchend(e) {
+                if (locked) {
+                    let dx = unify(e).clientX - x0,
+                        s = Math.sign(dx),
+                        f = +(s * dx / w).toFixed(2);
+
+                    ini = i - s * f;
+
+                    if ((i > 0 || s < 0) && (i < N - 1 || s > 0) && f > .1) {
+                        i -= s;
+                        f = 1 - f
+                    }
+
+                    fin = i;
+                    anf = Math.round(f * NF);
+                    n = 2 + Math.round(f)
+                    this.ani();
+                    x0 = null;
+                    locked = false;
+                }
+            }
+
+            ontouchmove(e) {
+                e.preventDefault();
+
+                if (locked) {
+                    let dx = unify(e).clientX - x0, f = +(dx / w).toFixed(2);
+                    if((i-f)>0)
+                    this.drawer.style.setProperty('--i', i - f)
+                    else locked = false
+                }
+            }
+
+            disconnectedCallback() {
+            }
+
+            attributeChangedCallback(name, oldValue, newValue) {
+            }
+
+            static get observedAttributes() {
+                return [];
+            }
+        });
+
+        window.onclick = function (e) {
+            const eventAwesome = new CustomEvent('drawer', {
+                bubbles: true,
+                detail: { open: true }
+            });
+            window.dispatchEvent(eventAwesome)
+        }
+    </script>
+</head>
+
+<web-app>
+    <web-drawer modal>
+        <web-appbar drawer>Dokumente</web-appbar>
+        <web-drawer-content>
+            content
+        </web-drawer-content>
+    </web-drawer>
+</web-app>
+
+</html>
